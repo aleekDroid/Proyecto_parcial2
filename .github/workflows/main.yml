@@ -14,7 +14,7 @@ on:
 
 jobs:
   test-and-audit:
-    name: Job 1 - Pruebas E2E y Auditoria OpenObserve
+    name: Job 1 - Pruebas Unitarias (Jest), E2E (Playwright) y Auditoria OpenObserve
     runs-on: ubuntu-latest
 
     steps:
@@ -30,10 +30,16 @@ jobs:
       - name: Instalacion de Dependencias
         run: npm ci
 
+      - name: Compilar Frontend React
+        run: npm run build
+
+      - name: Ejecutar Pruebas Unitarias de Backend (Jest)
+        run: npm run test:unit
+
       - name: Instalar Navegadores de Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Ejecutar Suite de Pruebas Playwright
+      - name: Ejecutar Suite de Pruebas E2E (Playwright)
         env:
           FAIL_PIPELINE: ${{ github.event.inputs.fail_pipeline || 'false' }}
         run: npm run test:e2e
@@ -50,7 +56,7 @@ jobs:
               \"commit_sha\": \"${{ github.sha }}\",
               \"branch\": \"${{ github.ref_name }}\",
               \"author\": \"${{ github.actor }}\",
-              \"message\": \"Suite de pruebas E2E aprobada exitosamente\",
+              \"message\": \"Suite de pruebas Unitarias (Jest) y E2E (Playwright) aprobadas exitosamente\",
               \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
             }]"
 
@@ -66,7 +72,7 @@ jobs:
               \"commit_sha\": \"${{ github.sha }}\",
               \"branch\": \"${{ github.ref_name }}\",
               \"author\": \"${{ github.actor }}\",
-              \"message\": \"Pruebas E2E fallidas. Pipeline abortado. Conexion SSH a EC2 bloqueada.\",
+              \"message\": \"Pruebas fallidas. Pipeline abortado. Conexion SSH a EC2 bloqueada.\",
               \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
             }]"
           exit 1

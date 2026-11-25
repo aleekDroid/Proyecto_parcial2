@@ -23,9 +23,9 @@ export default defineConfig({
     }
   ],
   webServer: {
-    command: 'node src/backend/server.js',
+    command: 'npm run build && node src/backend/server.js',
     url: 'http://localhost:3000/health',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120 * 1000
   }
 });

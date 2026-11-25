@@ -3,43 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Proyecto Parcial 2 - Dashboard Observabilidad</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f6f9; color: #333; }
-    .container { max-width: 800px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    h1 { color: #0056b3; border-bottom: 2px solid #0056b3; padding-bottom: 10px; }
-    .status-badge { display: inline-block; padding: 6px 12px; border-radius: 4px; background: #28a745; color: white; font-weight: bold; }
-    .btn { padding: 10px 15px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; }
-    .btn-primary { background-color: #007bff; color: white; }
-    .btn-danger { background-color: #dc3545; color: white; }
-    .btn-success { background-color: #28a745; color: white; }
-    .form-group { margin: 15px 0; }
-    input[type="text"] { width: 70%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-    ul { list-style: none; padding: 0; }
-    li { background: #eef2f7; margin: 5px 0; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; }
-    .error-box { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 4px; margin-top: 15px; display: none; }
-  </style>
+  <title>Proyecto Parcial 2 - React Auth & User CRUD</title>
 </head>
 <body>
-  <div class="container">
-    <h1>Proyecto Parcial 2 - Sistema de Monitoreo</h1>
-    <p>Estado del sistema: <span id="sys-status" class="status-badge" data-testid="sys-status">Cargando...</span></p>
-
-    <h2>Gestión de Items</h2>
-    <div class="form-group">
-      <input type="text" id="item-name" data-testid="input-item-name" placeholder="Nombre del nuevo recurso">
-      <button id="btn-add-item" class="btn btn-success" data-testid="btn-add-item">Agregar Item</button>
-      <button id="btn-fetch-items" class="btn btn-primary" data-testid="btn-fetch-items">Recargar Items</button>
-    </div>
-
-    <ul id="items-list" data-testid="items-list"></ul>
-
-    <h2>Pruebas de Resiliencia</h2>
-    <button id="btn-simulate-error" class="btn btn-danger" data-testid="btn-simulate-error">Simular Error Interno (500)</button>
-
-    <div id="error-message" class="error-box" data-testid="error-message"></div>
-  </div>
-
-  <script src="/app.js"></script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

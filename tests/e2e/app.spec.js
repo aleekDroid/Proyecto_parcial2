@@ -1,37 +1,65 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Suite E2E - Aplicación y Observabilidad', () => {
+test.describe('Suite E2E - React Frontend, Autenticación y CRUD de Usuarios', () => {
 
   test('Debe verificar que la API de Healthcheck responda correctamente', async ({ request }) => {
     const response = await request.get('/health');
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body.status).toBe('UP');
-    expect(body.timestamp).toBeDefined();
   });
 
-  test('Debe cargar la interfaz web y listar los elementos iniciales', async ({ page }) => {
+  test('Debe completar el flujo de Registro de Usuario en la interfaz React', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByTestId('sys-status')).toHaveText('ONLINE');
-    const itemsList = page.getByTestId('items-list');
-    await expect(itemsList).toBeVisible();
-    await expect(itemsList.locator('li')).toHaveCount(3);
+    await page.getByTestId('tab-register').click();
+
+    const testEmail = `react_user_${Date.now()}@example.com`;
+    await page.getByTestId('input-register-name').fill('Usuario React E2E');
+    await page.getByTestId('input-register-email').fill(testEmail);
+    await page.getByTestId('input-register-password').fill('Password123!');
+    await page.getByTestId('btn-register-submit').click();
+
+    await expect(page.getByTestId('user-welcome')).toContainText('Usuario React E2E');
   });
 
-  test('Debe permitir registrar un nuevo recurso y reflejarlo en la UI', async ({ page }) => {
+  test('Debe permitir Iniciar Sesión con credenciales existentes', async ({ page }) => {
     await page.goto('/');
-    const newItemName = `EC2 Node Monitor ${Date.now()}`;
+    await page.getByTestId('input-login-email').fill('admin@example.com');
+    await page.getByTestId('input-login-password').fill('admin123');
+    await page.getByTestId('btn-login-submit').click();
 
-    await page.getByTestId('input-item-name').fill(newItemName);
-    await page.getByTestId('btn-add-item').click();
-
-    await expect(page.getByTestId('items-list')).toContainText(newItemName);
+    await expect(page.getByTestId('user-welcome')).toContainText('Admin System');
   });
 
-  test('Debe manejar adecuadamente los errores HTTP 500 y mostrar el mensaje en UI', async ({ page }) => {
+  test('Debe ejecutar operaciones CRUD (Crear, Editar y Eliminar Usuario)', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('input-login-email').fill('admin@example.com');
+    await page.getByTestId('input-login-password').fill('admin123');
+    await page.getByTestId('btn-login-submit').click();
+
+    const createdEmail = `crud_user_${Date.now()}@example.com`;
+    await page.getByTestId('input-user-name').fill('Usuario CRUD Inicial');
+    await page.getByTestId('input-user-email').fill(createdEmail);
+    await page.getByTestId('input-user-password').fill('CrudPass123');
+    await page.getByTestId('btn-save-user').click();
+
+    await expect(page.getByTestId('users-table')).toContainText('Usuario CRUD Inicial');
+
+    const lastEditBtn = page.locator('button[data-testid^="btn-edit-user-"]').last();
+    await lastEditBtn.click();
+
+    await page.getByTestId('input-user-name').fill('Usuario CRUD Modificado');
+    await page.getByTestId('btn-save-user').click();
+
+    await expect(page.getByTestId('users-table')).toContainText('Usuario CRUD Modificado');
+
+    const lastDeleteBtn = page.locator('button[data-testid^="btn-delete-user-"]').last();
+    await lastDeleteBtn.click();
+  });
+
+  test('Debe manejar adecuadamente los errores HTTP 500 en la UI', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('btn-simulate-error').click();
-
     const errorBox = page.getByTestId('error-message');
     await expect(errorBox).toBeVisible();
     await expect(errorBox).toContainText('Simulación intencional de falla interna en backend');

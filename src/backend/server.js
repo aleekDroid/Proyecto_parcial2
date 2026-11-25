@@ -1,17 +1,19 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import otelApi from '@opentelemetry/api';
 const { metrics } = otelApi;
 
 import { logger } from './logger.js';
-import { fetchItemsFromDB, addItemToDB } from './db.js';
+import { comparePassword, generateToken, authMiddleware } from './auth.js';
+import { getAllUsers, getUserByEmail, createUser, updateUser, deleteUser } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
+export const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
@@ -52,46 +54,116 @@ app.use((req, res, next) => {
 
     if (statusCode >= 400) {
       httpErrorsCounter.add(1, attributes);
-      logger.warn(`Petición fallida HTTP ${statusCode}`, {
-        method: req.method,
-        path: req.path,
-        statusCode,
-        durationInSeconds
-      });
+      logger.warn(`Petición fallida HTTP ${statusCode}`, { method: req.method, path: req.path, statusCode, durationInSeconds });
     } else {
-      logger.info(`Petición HTTP exitosa ${req.method} ${req.path}`, {
-        method: req.method,
-        path: req.path,
-        statusCode,
-        durationInSeconds
-      });
+      logger.info(`Petición HTTP exitosa ${req.method} ${req.path}`, { method: req.method, path: req.path, statusCode, durationInSeconds });
     }
   });
 
   next();
 });
 
-app.use(express.static(path.join(__dirname, '../frontend')));
+const staticDistPath = path.join(__dirname, '../frontend/dist');
+if (fs.existsSync(staticDistPath)) {
+  app.use(express.static(staticDistPath));
+} else {
+  app.use(express.static(path.join(__dirname, '../frontend')));
+}
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/items', async (req, res, next) => {
+app.post('/api/auth/register', async (req, res, next) => {
   try {
-    const items = await fetchItemsFromDB();
-    res.status(200).json({ success: true, data: items });
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Nombre, email y contraseña son obligatorios' });
+    }
+
+    const existingUser = await getUserByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'El correo electrónico ya está registrado' });
+    }
+
+    const newUser = await createUser({ name, email, password, role });
+    const token = generateToken(newUser);
+    logger.info('Usuario registrado exitosamente', { userId: newUser.id, email: newUser.email });
+    res.status(201).json({ success: true, user: newUser, token });
   } catch (error) {
     next(error);
   }
 });
 
-app.post('/api/items', async (req, res, next) => {
+app.post('/api/auth/login', async (req, res, next) => {
   try {
-    const newItem = await addItemToDB(req.body);
-    res.status(201).json({ success: true, data: newItem });
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email y contraseña requeridos' });
+    }
+
+    const user = await getUserByEmail(email);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+    }
+
+    const isMatch = await comparePassword(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+    }
+
+    const token = generateToken(user);
+    const { password: p, ...userWithoutPass } = user;
+    logger.info('Inicio de sesión exitoso', { userId: user.id, email: user.email });
+    res.status(200).json({ success: true, user: userWithoutPass, token });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/users', async (req, res, next) => {
+  try {
+    const users = await getAllUsers();
+    res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/users', async (req, res, next) => {
+  try {
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Datos incompletos para crear usuario' });
+    }
+    const newUser = await createUser({ name, email, password, role });
+    res.status(201).json({ success: true, data: newUser });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/users/:id', async (req, res, next) => {
+  try {
+    const updated = await updateUser(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+    res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/users/:id', async (req, res, next) => {
+  try {
+    const deleted = await deleteUser(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+    res.status(200).json({ success: true, message: 'Usuario eliminado correctamente' });
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -101,13 +173,16 @@ app.get('/api/error-simulation', (req, res, next) => {
   next(error);
 });
 
+app.get('*', (req, res) => {
+  const indexHtml = fs.existsSync(staticDistPath)
+    ? path.join(staticDistPath, 'index.html')
+    : path.join(__dirname, '../frontend/index.html');
+  res.sendFile(indexHtml);
+});
+
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
-  logger.error('Excepción no controlada en endpoint HTTP', err, {
-    method: req.method,
-    url: req.url,
-    statusCode
-  });
+  logger.error('Excepción no controlada en endpoint HTTP', err, { method: req.method, url: req.url, statusCode });
 
   res.status(statusCode).json({
     success: false,
@@ -119,6 +194,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  logger.info(`Servidor iniciado y escuchando en puerto ${PORT}`, { port: PORT, env: process.env.NODE_ENV });
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    logger.info(`Servidor iniciado y escuchando en puerto ${PORT}`, { port: PORT, env: process.env.NODE_ENV });
+  });
+}
