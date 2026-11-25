@@ -23,6 +23,11 @@ Este proyecto implementa una solución integral de entrega continua (CI/CD) en G
 
 ## 🚀 Guía de Ejecución Local
 
+### Acceso y permisos
+- El registro público siempre crea cuentas con rol de usuario; el rol no se puede elegir desde el formulario.
+- Solo una sesión autenticada con rol de administrador puede consultar, crear, editar o eliminar cuentas.
+- La administración de usuarios se muestra únicamente a las cuentas de administrador. La API también valida el rol, así que ocultar controles no es la única protección.
+
 ### 1. Instalación de Dependencias
 ```bash
 npm install

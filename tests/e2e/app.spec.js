@@ -9,7 +9,7 @@ test.describe('Suite E2E - React Frontend, Autenticación y CRUD de Usuarios', (
     expect(body.status).toBe('UP');
   });
 
-  test('Debe completar el flujo de Registro de Usuario en la interfaz React', async ({ page }) => {
+  test('El registro crea una cuenta de usuario sin acceso a la administración', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('tab-register').click();
 
@@ -20,6 +20,14 @@ test.describe('Suite E2E - React Frontend, Autenticación y CRUD de Usuarios', (
     await page.getByTestId('btn-register-submit').click();
 
     await expect(page.getByTestId('user-welcome')).toContainText('Usuario React E2E');
+    await expect(page.getByTestId('dashboard')).toBeVisible();
+    await expect(page.getByTestId('tab-crud')).toHaveCount(0);
+
+    const token = await page.evaluate(() => localStorage.getItem('token'));
+    const usersResponse = await page.request.get('/api/users', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    expect(usersResponse.status()).toBe(403);
   });
 
   test('Debe permitir Iniciar Sesión con credenciales existentes', async ({ page }) => {
@@ -38,6 +46,8 @@ test.describe('Suite E2E - React Frontend, Autenticación y CRUD de Usuarios', (
     await page.getByTestId('btn-login-submit').click();
 
     const createdEmail = `crud_user_${Date.now()}@example.com`;
+    await page.getByTestId('tab-crud').click();
+    await page.getByTestId('btn-open-user-form').click();
     await page.getByTestId('input-user-name').fill('Usuario CRUD Inicial');
     await page.getByTestId('input-user-email').fill(createdEmail);
     await page.getByTestId('input-user-password').fill('CrudPass123');
@@ -57,12 +67,11 @@ test.describe('Suite E2E - React Frontend, Autenticación y CRUD de Usuarios', (
     await lastDeleteBtn.click();
   });
 
-  test('Debe manejar adecuadamente los errores HTTP 500 en la UI', async ({ page }) => {
-    await page.goto('/');
-    await page.getByTestId('btn-simulate-error').click();
-    const errorBox = page.getByTestId('error-message');
-    await expect(errorBox).toBeVisible();
-    await expect(errorBox).toContainText('Simulación intencional de falla interna en backend');
+  test('Debe responder con un error HTTP 500 en el endpoint de diagnóstico', async ({ request }) => {
+    const response = await request.get('/api/error-simulation');
+    expect(response.status()).toBe(500);
+    const body = await response.json();
+    expect(body.error.message).toContain('Simulación intencional de falla interna');
   });
 
 });

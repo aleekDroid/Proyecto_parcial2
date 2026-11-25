@@ -25,13 +25,16 @@ export default function Login({ onLoginSuccess, onError }) {
 
   return (
     <div className="card" data-testid="login-card">
-      <h2>Iniciar Sesión</h2>
+      <p className="eyebrow">Acceso a tu cuenta</p>
+      <h2>Iniciar sesión</h2>
+      <p className="card-description">Ingresa tu correo y contraseña para continuar.</p>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="login-email">Correo Electrónico</label>
           <input
             id="login-email"
             type="email"
+            autoComplete="email"
             data-testid="input-login-email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -43,6 +46,7 @@ export default function Login({ onLoginSuccess, onError }) {
           <input
             id="login-password"
             type="password"
+            autoComplete="current-password"
             data-testid="input-login-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -50,7 +54,7 @@ export default function Login({ onLoginSuccess, onError }) {
           />
         </div>
         <button type="submit" className="btn btn-primary" data-testid="btn-login-submit">
-          Ingresar al Sistema
+          Entrar
         </button>
       </form>
     </div>

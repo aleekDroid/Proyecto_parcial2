@@ -7,7 +7,7 @@ import otelApi from '@opentelemetry/api';
 const { metrics } = otelApi;
 
 import { logger } from './logger.js';
-import { comparePassword, generateToken, authMiddleware } from './auth.js';
+import { comparePassword, generateToken, authMiddleware, adminMiddleware } from './auth.js';
 import { getAllUsers, getUserByEmail, createUser, updateUser, deleteUser } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -76,7 +76,7 @@ app.get('/health', (req, res) => {
 
 app.post('/api/auth/register', async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Nombre, email y contraseña son obligatorios' });
     }
@@ -86,7 +86,7 @@ app.post('/api/auth/register', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'El correo electrónico ya está registrado' });
     }
 
-    const newUser = await createUser({ name, email, password, role });
+    const newUser = await createUser({ name, email, password, role: 'user' });
     const token = generateToken(newUser);
     logger.info('Usuario registrado exitosamente', { userId: newUser.id, email: newUser.email });
     res.status(201).json({ success: true, user: newUser, token });
@@ -121,6 +121,8 @@ app.post('/api/auth/login', async (req, res, next) => {
   }
 });
 
+app.use('/api/users', authMiddleware, adminMiddleware);
+
 app.get('/api/users', async (req, res, next) => {
   try {
     const users = await getAllUsers();
@@ -136,6 +138,9 @@ app.post('/api/users', async (req, res, next) => {
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Datos incompletos para crear usuario' });
     }
+    if (role && !['user', 'admin'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Rol de usuario inválido' });
+    }
     const newUser = await createUser({ name, email, password, role });
     res.status(201).json({ success: true, data: newUser });
   } catch (error) {
@@ -145,6 +150,13 @@ app.post('/api/users', async (req, res, next) => {
 
 app.put('/api/users/:id', async (req, res, next) => {
   try {
+    const { name, email, role } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ success: false, message: 'Nombre y correo son obligatorios' });
+    }
+    if (role && !['user', 'admin'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Rol de usuario inválido' });
+    }
     const updated = await updateUser(req.params.id, req.body);
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado' });

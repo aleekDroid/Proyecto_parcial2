@@ -4,7 +4,6 @@ export default function Register({ onRegisterSuccess, onError }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('user');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -12,7 +11,7 @@ export default function Register({ onRegisterSuccess, onError }) {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role })
+        body: JSON.stringify({ name, email, password })
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -27,13 +26,16 @@ export default function Register({ onRegisterSuccess, onError }) {
 
   return (
     <div className="card" data-testid="register-card">
-      <h2>Registro de Usuario</h2>
+      <p className="eyebrow">Nuevo acceso</p>
+      <h2>Crear cuenta</h2>
+      <p className="card-description">Regístrate para acceder a tu espacio de usuario.</p>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="reg-name">Nombre Completo</label>
           <input
             id="reg-name"
             type="text"
+            autoComplete="name"
             data-testid="input-register-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -45,6 +47,7 @@ export default function Register({ onRegisterSuccess, onError }) {
           <input
             id="reg-email"
             type="email"
+            autoComplete="email"
             data-testid="input-register-email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -56,21 +59,15 @@ export default function Register({ onRegisterSuccess, onError }) {
           <input
             id="reg-password"
             type="password"
+            autoComplete="new-password"
             data-testid="input-register-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
         </div>
-        <div className="form-group">
-          <label htmlFor="reg-role">Rol de Usuario</label>
-          <select id="reg-role" data-testid="select-register-role" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="user">Usuario Standard</option>
-            <option value="admin">Administrador</option>
-          </select>
-        </div>
-        <button type="submit" className="btn btn-success" data-testid="btn-register-submit">
-          Registrar Usuario
+        <button type="submit" className="btn btn-primary" data-testid="btn-register-submit">
+          Crear cuenta
         </button>
       </form>
     </div>

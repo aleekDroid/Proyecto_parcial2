@@ -6,6 +6,7 @@ import UserCrud from './components/UserCrud.jsx';
 export default function App() {
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState('login');
+  const [token, setToken] = useState('');
   const [sysStatus, setSysStatus] = useState('Cargando...');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -30,87 +31,91 @@ export default function App() {
     if (token && savedUser) {
       try {
         setUser(JSON.parse(savedUser));
-        setTab('crud');
+        setToken(token);
+        setTab('home');
       } catch (err) {
-        localStorage.clear();
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       }
     }
   }, []);
 
   const handleAuthSuccess = (data) => {
     setUser(data.user);
+    setToken(data.token);
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     setErrorMessage('');
-    setTab('crud');
+    setTab('home');
   };
 
   const handleLogout = () => {
     setUser(null);
+    setToken('');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setTab('login');
   };
 
-  const handleSimulateError = async () => {
-    setErrorMessage('');
-    try {
-      const res = await fetch('/api/error-simulation');
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error ? data.error.message : 'Error 500 detectado');
-      }
-    } catch (err) {
-      setErrorMessage('Fallo al simular error en backend');
-    }
-  };
-
   return (
     <div className="container">
       <div className="header-bar">
-        <h1>Proyecto Parcial 2 - React & PostgreSQL</h1>
-        <div>
-          Estado: <span className={`status-badge ${sysStatus === 'ONLINE' ? 'status-online' : 'status-offline'}`} data-testid="sys-status">{sysStatus}</span>
+        <div className="brand">
+          <span className="brand-kicker">Proyecto parcial 2</span>
+          <h1>Gestión de usuarios</h1>
+        </div>
+        <div className="system-status">
+          <span className="status-label">Sistema</span>
+          <span className={`status-badge ${sysStatus === 'ONLINE' ? 'status-online' : 'status-offline'}`} data-testid="sys-status">{sysStatus}</span>
         </div>
       </div>
 
       <div className="nav-tabs">
         {!user ? (
-          <>
-            <button className={`btn ${tab === 'login' ? 'btn-primary' : ''}`} data-testid="tab-login" onClick={() => setTab('login')}>
-              Iniciar Sesión
+          <div className="auth-nav" aria-label="Acceso">
+            <button className={`nav-link ${tab === 'login' ? 'active' : ''}`} data-testid="tab-login" onClick={() => { setErrorMessage(''); setTab('login'); }}>
+              Iniciar sesión
             </button>
-            <button className={`btn ${tab === 'register' ? 'btn-primary' : ''}`} data-testid="tab-register" onClick={() => setTab('register')}>
-              Registrarse
+            <button className={`nav-link ${tab === 'register' ? 'active' : ''}`} data-testid="tab-register" onClick={() => { setErrorMessage(''); setTab('register'); }}>
+              Crear cuenta
             </button>
-          </>
+          </div>
         ) : (
-          <>
-            <span style={{ fontWeight: 'bold', alignSelf: 'center' }} data-testid="user-welcome">
-              Hola, {user.name} ({user.role})
+          <div className="user-nav">
+            <span className="user-identity" data-testid="user-welcome">
+              <span className="user-name">{user.name}</span>
+              <span className="user-role">{user.role === 'admin' ? 'Administrador' : 'Usuario'}</span>
             </span>
-            <button className="btn btn-primary" data-testid="tab-crud" onClick={() => setTab('crud')}>
-              CRUD Usuarios
+            {user.role === 'admin' && (
+              <button className={`nav-link ${tab === 'crud' ? 'active' : ''}`} data-testid="tab-crud" onClick={() => { setErrorMessage(''); setTab(tab === 'crud' ? 'home' : 'crud'); }}>
+                {tab === 'crud' ? 'Volver al inicio' : 'Administrar usuarios'}
+              </button>
+            )}
+            <button className="nav-link logout-link" data-testid="btn-logout" onClick={handleLogout}>
+              Cerrar sesión
             </button>
-            <button className="btn btn-danger" data-testid="btn-logout" onClick={handleLogout}>
-              Cerrar Sesión
-            </button>
-          </>
+          </div>
         )}
-        <button className="btn btn-danger" data-testid="btn-simulate-error" onClick={handleSimulateError} style={{ marginLeft: 'auto' }}>
-          Simular Error (500)
-        </button>
       </div>
 
       {errorMessage && (
-        <div className="error-box" data-testid="error-message">
+        <div className="error-box" role="alert" data-testid="error-message">
           Error: {errorMessage}
         </div>
       )}
 
       {!user && tab === 'login' && <Login onLoginSuccess={handleAuthSuccess} onError={setErrorMessage} />}
       {!user && tab === 'register' && <Register onRegisterSuccess={handleAuthSuccess} onError={setErrorMessage} />}
-      {tab === 'crud' && <UserCrud onError={setErrorMessage} />}
+      {user && tab === 'home' && (
+        <main className="welcome-panel" data-testid="dashboard">
+          <p className="eyebrow">{user.role === 'admin' ? 'Administración' : 'Tu espacio'}</p>
+          <h2>Hola, {user.name}</h2>
+          <p>{user.role === 'admin'
+            ? 'Desde aquí puedes administrar las cuentas y sus permisos.'
+            : 'Tu cuenta está lista. Las herramientas de administración están reservadas para el equipo administrador.'}</p>
+        </main>
+      )}
+      {user?.role === 'admin' && tab === 'crud' && <UserCrud token={token} onError={setErrorMessage} />}
     </div>
   );
 }
