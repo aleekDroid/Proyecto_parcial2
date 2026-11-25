@@ -112,7 +112,17 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "Iniciando despliegue de contenedor en AWS EC2..."
+            echo "Asegurando contenedor de PostgreSQL en AWS EC2 en puerto 5432..."
+            docker run -d \
+              --name proyecto-parcial2-db \
+              --restart always \
+              -p 5432:5432 \
+              -e POSTGRES_USER=postgres \
+              -e POSTGRES_PASSWORD=postgres123 \
+              -e POSTGRES_DB=proyecto_parcial2 \
+              postgres:15-alpine || true
+
+            echo "Iniciando despliegue de contenedor web en AWS EC2 en puerto 3000..."
             docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ github.sha }}
             docker stop ${{ secrets.DOCKER_IMAGE_NAME }} || true
             docker rm ${{ secrets.DOCKER_IMAGE_NAME }} || true
@@ -122,6 +132,11 @@ jobs:
               -p 3000:3000 \
               -e PORT=3000 \
               -e NODE_ENV=production \
+              -e POSTGRES_USER=postgres \
+              -e POSTGRES_PASSWORD=postgres123 \
+              -e POSTGRES_HOST=172.17.0.1 \
+              -e POSTGRES_PORT=5432 \
+              -e POSTGRES_DB=proyecto_parcial2 \
               -e OTEL_SERVICE_NAME=proyecto-parcial2-backend \
               -e OTEL_EXPORTER_OTLP_ENDPOINT="${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}" \
               -e OPENOBSERVE_AUTH_TOKEN="${{ secrets.OPENOBSERVE_AUTH_TOKEN }}" \
@@ -141,6 +156,6 @@ jobs:
               \"branch\": \"${{ github.ref_name }}\",
               \"author\": \"${{ github.actor }}\",
               \"image\": \"${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ github.sha }}\",
-              \"message\": \"Contenedor actualizado y desplegado en AWS EC2 en puerto 3000\",
+              \"message\": \"Contenedores actualizados y desplegados en AWS EC2 (Web 3000, Postgres 5432)\",
               \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
             }]"
