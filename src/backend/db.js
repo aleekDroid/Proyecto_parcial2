@@ -1,4 +1,6 @@
-import { trace, SpanStatusCode } from '@opentelemetry/api';
+import otelApi from '@opentelemetry/api';
+const { trace, SpanStatusCode } = otelApi;
+
 import { logger } from './logger.js';
 
 const tracer = trace.getTracer('db-service');

@@ -2,7 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { metrics } from '@opentelemetry/api';
+import otelApi from '@opentelemetry/api';
+const { metrics } = otelApi;
+
 import { logger } from './logger.js';
 import { fetchItemsFromDB, addItemToDB } from './db.js';
 

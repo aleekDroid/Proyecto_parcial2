@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import otelApi from '@opentelemetry/api';
+const { trace, metrics, logs } = otelApi;
+
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
@@ -9,7 +12,6 @@ import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { BatchLogRecordProcessor, LoggerProvider } from '@opentelemetry/sdk-logs';
-import { logs, metrics, trace } from '@opentelemetry/api';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 
@@ -59,7 +61,10 @@ const logExporter = new OTLPLogExporter({
 
 const loggerProvider = new LoggerProvider({ resource });
 loggerProvider.addLogRecordProcessor(new BatchLogRecordProcessor(logExporter));
-logs.setGlobalLoggerProvider(loggerProvider);
+
+if (logs && typeof logs.setGlobalLoggerProvider === 'function') {
+  logs.setGlobalLoggerProvider(loggerProvider);
+}
 
 const sdk = new NodeSDK({
   resource,

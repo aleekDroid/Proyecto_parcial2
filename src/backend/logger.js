@@ -1,16 +1,47 @@
 import winston from 'winston';
-import { trace, logs, SeverityNumber } from '@opentelemetry/api';
+import otelApi from '@opentelemetry/api';
+const { trace, logs } = otelApi;
 
-const otelLogger = logs.getLogger('proyecto-parcial2-logger');
+const SeverityNumber = {
+  INFO: 9,
+  WARN: 13,
+  ERROR: 17
+};
+
+function safeEmitOtelLog(severityNumber, severityText, body, attributes) {
+  try {
+    if (logs && typeof logs.getLogger === 'function') {
+      const otelLogger = logs.getLogger('proyecto-parcial2-logger');
+      if (otelLogger && typeof otelLogger.emit === 'function') {
+        otelLogger.emit({
+          severityNumber,
+          severityText,
+          body,
+          attributes
+        });
+      }
+    }
+  } catch (err) {
+    // Fail-safe for OTEL log emission
+  }
+}
 
 export function getActiveTraceContext() {
-  const activeSpan = trace.getActiveSpan();
-  if (!activeSpan) return { traceId: null, spanId: null };
-  const spanContext = activeSpan.spanContext();
-  return {
-    traceId: spanContext.traceId,
-    spanId: spanContext.spanId
-  };
+  try {
+    if (trace && typeof trace.getActiveSpan === 'function') {
+      const activeSpan = trace.getActiveSpan();
+      if (activeSpan) {
+        const spanContext = activeSpan.spanContext();
+        return {
+          traceId: spanContext.traceId,
+          spanId: spanContext.spanId
+        };
+      }
+    }
+  } catch (err) {
+    // Fail-safe trace context lookup
+  }
+  return { traceId: null, spanId: null };
 }
 
 const winstonLogger = winston.createLogger({
@@ -29,16 +60,7 @@ export const logger = {
     const { traceId, spanId } = getActiveTraceContext();
     const payload = { timestamp: new Date().toISOString(), ...context, traceId, spanId };
     winstonLogger.info(message, payload);
-
-    otelLogger.emit({
-      severityNumber: SeverityNumber.INFO,
-      severityText: 'INFO',
-      body: message,
-      attributes: {
-        ...payload,
-        'log.type': 'application'
-      }
-    });
+    safeEmitOtelLog(SeverityNumber.INFO, 'INFO', message, { ...payload, 'log.type': 'application' });
   },
 
   error(message, errorOrContext = {}, extraContext = {}) {
@@ -58,31 +80,13 @@ export const logger = {
     };
 
     winstonLogger.error(message, payload);
-
-    otelLogger.emit({
-      severityNumber: SeverityNumber.ERROR,
-      severityText: 'ERROR',
-      body: message,
-      attributes: {
-        ...payload,
-        'log.type': 'exception'
-      }
-    });
+    safeEmitOtelLog(SeverityNumber.ERROR, 'ERROR', message, { ...payload, 'log.type': 'exception' });
   },
 
   warn(message, context = {}) {
     const { traceId, spanId } = getActiveTraceContext();
     const payload = { timestamp: new Date().toISOString(), ...context, traceId, spanId };
     winstonLogger.warn(message, payload);
-
-    otelLogger.emit({
-      severityNumber: SeverityNumber.WARN,
-      severityText: 'WARN',
-      body: message,
-      attributes: {
-        ...payload,
-        'log.type': 'warning'
-      }
-    });
+    safeEmitOtelLog(SeverityNumber.WARN, 'WARN', message, { ...payload, 'log.type': 'warning' });
   }
 };
