@@ -6,8 +6,41 @@ import { hashPassword } from './auth.js';
 
 const tracer = trace.getTracer('db-service');
 
+const pgUser = process.env.POSTGRES_USER || 'postgres';
+const pgPassword = process.env.POSTGRES_PASSWORD || 'postgres';
+const pgHost = process.env.POSTGRES_HOST || 'localhost';
+const pgPort = process.env.POSTGRES_PORT || 5432;
+const pgDbName = process.env.POSTGRES_DB || 'proyecto_parcial2';
+
+async function ensureDatabaseExists() {
+  if (process.env.DATABASE_URL) return;
+
+  const defaultPool = new pg.Pool({
+    user: pgUser,
+    password: pgPassword,
+    host: pgHost,
+    port: pgPort,
+    database: 'postgres',
+    connectionTimeoutMillis: 2000
+  });
+
+  try {
+    const client = await defaultPool.connect();
+    const checkDb = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [pgDbName]);
+    if (checkDb.rowCount === 0) {
+      await client.query(`CREATE DATABASE "${pgDbName}"`);
+      logger.info(`Base de datos PostgreSQL "${pgDbName}" creada automáticamente`);
+    }
+    client.release();
+  } catch (err) {
+    logger.warn('No se pudo verificar o crear la base de datos automáticamente en Postgres por defecto', { error: err.message });
+  } finally {
+    await defaultPool.end().catch(() => {});
+  }
+}
+
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || `postgres://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || 5432}/${process.env.POSTGRES_DB || 'proyecto_parcial2'}`,
+  connectionString: process.env.DATABASE_URL || `postgres://${pgUser}:${pgPassword}@${pgHost}:${pgPort}/${pgDbName}`,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000
@@ -22,6 +55,7 @@ export async function initDB() {
     span.setAttribute('db.operation', 'CREATE_TABLE');
 
     try {
+      await ensureDatabaseExists();
       const client = await pool.connect();
       await client.query(`
         CREATE TABLE IF NOT EXISTS users (
